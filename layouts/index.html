@@ -34,178 +34,44 @@
         <i class="fas fa-spinner"></i>
         <p>جاري تحميل الكتاب...</p>
     </div>
-    <canvas id="pdf-canvas" style="display: none;"></canvas>
+    
+    <!-- Enhanced PDF viewer with better text rendering -->
+    <iframe id="pdf-viewer" style="display: none; width: 100%; height: 900px; border: 1px solid #dee2e6; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.1);" 
+            src="{{ .Site.Params.pdf_file }}#view=FitV&toolbar=1&navpanes=1&scrollbar=1&zoom=page-width"></iframe>
+    
     <div id="error" class="error" style="display: none;"></div>
 </div>
 
 <script>
-    // Set PDF.js worker
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-
-    let pdfDoc = null;
-    let currentPage = 1;
-    let totalPages = 0;
-    let currentZoom = 1.0;
+    // Simple PDF viewer using browser's native PDF viewer
     const pdfFile = '{{ .Site.Params.pdf_file }}';
 
     // Initialize PDF viewer
-    async function initPDFViewer() {
+    function initPDFViewer() {
         try {
             const loadingElement = document.getElementById('loading');
-            const canvas = document.getElementById('pdf-canvas');
+            const pdfViewer = document.getElementById('pdf-viewer');
             const errorElement = document.getElementById('error');
 
-            // Configure PDF.js for better text rendering
-            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            // Show the PDF viewer
+            loadingElement.style.display = 'none';
+            pdfViewer.style.display = 'block';
             
-            // Set better rendering preferences
-            pdfjsLib.getDocument({
-                url: pdfFile,
-                cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/',
-                cMapPacked: true,
-                standardFontDataUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/standard_fonts/'
-            }).promise.then(loadingTask => {
-                pdfDoc = loadingTask;
-                totalPages = pdfDoc.numPages;
-                document.getElementById('total-pages').textContent = totalPages;
-                
-                // Hide loading, show canvas
-                loadingElement.style.display = 'none';
-                canvas.style.display = 'block';
-                
-                // Render first page
-                renderPage(currentPage).then(() => {
-                    updateButtons();
-                });
-            }).catch(error => {
-                console.error('Error loading PDF:', error);
-                document.getElementById('loading').style.display = 'none';
-                const errorElement = document.getElementById('error');
-                errorElement.style.display = 'block';
-                errorElement.innerHTML = `
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <p>حدث خطأ أثناء تحميل الكتاب</p>
-                    <p>الرجاء التأكد من وجود ملف PDF: ${pdfFile}</p>
-                `;
-            });
+            // Hide page controls since native viewer has its own
+            document.querySelector('.controls').style.display = 'none';
             
         } catch (error) {
-            console.error('Error initializing PDF viewer:', error);
+            console.error('Error loading PDF:', error);
+            document.getElementById('loading').style.display = 'none';
+            const errorElement = document.getElementById('error');
+            errorElement.style.display = 'block';
+            errorElement.innerHTML = `
+                <i class="fas fa-exclamation-triangle"></i>
+                <p>حدث خطأ أثناء تحميل الكتاب</p>
+                <p>الرجاء التأكد من وجود ملف PDF: ${pdfFile}</p>
+            `;
         }
     }
-
-    // Render a specific page
-    async function renderPage(pageNumber) {
-        if (!pdfDoc) return;
-
-        try {
-            const page = await pdfDoc.getPage(pageNumber);
-            const canvas = document.getElementById('pdf-canvas');
-            const context = canvas.getContext('2d');
-
-            // Calculate viewport with current zoom - simplified for better text
-            const viewport = page.getViewport({ 
-                scale: currentZoom,
-                dontFlip: false
-            });
-            
-            // Set canvas dimensions
-            canvas.height = viewport.height;
-            canvas.width = viewport.width;
-            
-            // Set rendering context for better text
-            context.fillStyle = '#ffffff';
-            context.fillRect(0, 0, canvas.width, canvas.height);
-            
-            // Enhanced rendering context for Arabic text
-            const renderContext = {
-                canvasContext: context,
-                viewport: viewport,
-                intent: 'display',
-                enableWebGL: false,
-                renderInteractiveForms: false,
-                annotationMode: pdfjsLib.AnnotationMode.ENABLE,
-                transform: [1, 0, 0, 1, 0, 0]
-            };
-            
-            await page.render(renderContext).promise;
-            
-            // Update page info
-            document.getElementById('current-page').textContent = pageNumber;
-            
-        } catch (error) {
-            console.error('Error rendering page:', error);
-        }
-    }
-
-    // Navigation functions
-    function previousPage() {
-        if (currentPage > 1) {
-            currentPage--;
-            renderPage(currentPage);
-            updateButtons();
-        }
-    }
-
-    function nextPage() {
-        if (currentPage < totalPages) {
-            currentPage++;
-            renderPage(currentPage);
-            updateButtons();
-        }
-    }
-
-    // Zoom functions
-    function zoomIn() {
-        currentZoom = Math.min(currentZoom + 0.25, 3.0);
-        renderPage(currentPage);
-        updateZoomLevel();
-    }
-
-    function zoomOut() {
-        currentZoom = Math.max(currentZoom - 0.25, 0.5);
-        renderPage(currentPage);
-        updateZoomLevel();
-    }
-
-    function resetZoom() {
-        currentZoom = 1.0;
-        renderPage(currentPage);
-        updateZoomLevel();
-    }
-
-    function updateZoomLevel() {
-        document.getElementById('zoom-level').textContent = Math.round(currentZoom * 100) + '%';
-    }
-
-    // Update button states
-    function updateButtons() {
-        document.getElementById('prev-page').disabled = currentPage <= 1;
-        document.getElementById('next-page').disabled = currentPage >= totalPages;
-    }
-
-    // Keyboard navigation
-    document.addEventListener('keydown', (event) => {
-        switch(event.key) {
-            case 'ArrowRight':
-                previousPage();
-                break;
-            case 'ArrowLeft':
-                nextPage();
-                break;
-            case '+':
-            case '=':
-                zoomIn();
-                break;
-            case '-':
-            case '_':
-                zoomOut();
-                break;
-            case '0':
-                resetZoom();
-                break;
-        }
-    });
 
     // Initialize when page loads
     document.addEventListener('DOMContentLoaded', initPDFViewer);
