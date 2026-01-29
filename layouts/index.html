@@ -92,19 +92,34 @@
             const canvas = document.getElementById('pdf-canvas');
             const context = canvas.getContext('2d');
 
-            // Calculate viewport with current zoom
-            const viewport = page.getViewport({ scale: currentZoom });
+            // Calculate viewport with current zoom and better rendering settings
+            const viewport = page.getViewport({ 
+                scale: currentZoom * 2, // Higher scale for better quality
+                dontFlip: false
+            });
             
-            // Set canvas dimensions
-            canvas.height = viewport.height;
-            canvas.width = viewport.width;
-
-            // Render PDF page
+            // Set canvas dimensions with device pixel ratio for sharpness
+            const devicePixelRatio = window.devicePixelRatio || 1;
+            canvas.height = viewport.height * devicePixelRatio;
+            canvas.width = viewport.width * devicePixelRatio;
+            canvas.style.height = viewport.height + 'px';
+            canvas.style.width = viewport.width + 'px';
+            
+            // Scale context for high DPI displays
+            context.scale(devicePixelRatio, devicePixelRatio);
+            
+            // Set rendering preferences for better text quality
             const renderContext = {
                 canvasContext: context,
-                viewport: viewport
+                viewport: viewport,
+                intent: 'print', // Better quality rendering
+                enableWebGL: false,
+                renderInteractiveForms: false
             };
 
+            // Clear canvas before rendering
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            
             await page.render(renderContext).promise;
             
             // Update page info
