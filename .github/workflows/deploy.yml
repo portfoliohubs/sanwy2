@@ -26,17 +26,6 @@ jobs:
         hugo-version: 'latest'
         extended: true
 
-    - name: Setup Node
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
-
-    - name: Install Dependencies
-      run: |
-        npm install -g postcss-cli
-        npm install -g autoprefixer
-
     - name: Build
       run: hugo --minify
 
