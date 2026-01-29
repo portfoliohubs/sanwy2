@@ -1,75 +1,65 @@
 {{ define "main" }}
 
-<div class="controls">
-    <button class="btn" id="prev-page" onclick="previousPage()">
-        <i class="fas fa-chevron-right"></i>
-        السابق
-    </button>
-    
-    <div class="page-info">
-        صفحة <span id="current-page">1</span> من <span id="total-pages">-</span>
-    </div>
-    
-    <button class="btn" id="next-page" onclick="nextPage()">
-        التالي
-        <i class="fas fa-chevron-left"></i>
-    </button>
-
-    <div class="zoom-controls">
-        <button class="btn" onclick="zoomOut()">
-            <i class="fas fa-search-minus"></i>
-        </button>
-        <div class="zoom-level" id="zoom-level">100%</div>
-        <button class="btn" onclick="zoomIn()">
-            <i class="fas fa-search-plus"></i>
-        </button>
-        <button class="btn" onclick="resetZoom()">
-            <i class="fas fa-compress"></i>
-        </button>
-    </div>
-</div>
-
-<div class="pdf-container">
-    <div id="loading" class="loading">
-        <i class="fas fa-spinner"></i>
-        <p>جاري تحميل الكتاب...</p>
-    </div>
-    
-    <!-- Enhanced PDF viewer with better text rendering -->
-    <iframe id="pdf-viewer" style="display: none; width: 100%; height: 900px; border: 1px solid #dee2e6; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.1);" 
-            src="{{ .Site.Params.pdf_file }}#view=FitV&toolbar=0&navpanes=0&scrollbar=1&zoom=80"></iframe>
-    
-    <div id="error" class="error" style="display: none;"></div>
-</div>
+<!-- Full screen PDF viewer - no other elements -->
+<iframe id="pdf-viewer" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; border: none; margin: 0; padding: 0;" 
+        src="{{ .Site.Params.pdf_file }}#view=FitH&toolbar=0&navpanes=0&scrollbar=0"></iframe>
 
 <script>
-    // Simple PDF viewer using browser's native PDF viewer
+    // Full screen PDF viewer with Smart TV remote support
     const pdfFile = '{{ .Site.Params.pdf_file }}';
 
     // Initialize PDF viewer
     function initPDFViewer() {
         try {
-            const loadingElement = document.getElementById('loading');
             const pdfViewer = document.getElementById('pdf-viewer');
-            const errorElement = document.getElementById('error');
-
-            // Show the PDF viewer
-            loadingElement.style.display = 'none';
             pdfViewer.style.display = 'block';
             
-            // Hide page controls since native viewer has its own
-            document.querySelector('.controls').style.display = 'none';
+            // Remove body margin/padding for full screen
+            document.body.style.margin = '0';
+            document.body.style.padding = '0';
+            document.body.style.overflow = 'hidden';
             
         } catch (error) {
             console.error('Error loading PDF:', error);
-            document.getElementById('loading').style.display = 'none';
-            const errorElement = document.getElementById('error');
-            errorElement.style.display = 'block';
-            errorElement.innerHTML = `
-                <i class="fas fa-exclamation-triangle"></i>
-                <p>حدث خطأ أثناء تحميل الكتاب</p>
-                <p>الرجاء التأكد من وجود ملف PDF: ${pdfFile}</p>
-            `;
+        }
+    }
+
+    // Smart TV remote control support
+    document.addEventListener('keydown', function(event) {
+        // Volume Up (Next page)
+        if (event.key === 'ArrowUp' || event.key === 'VolumeUp' || event.key === 'PageDown') {
+            event.preventDefault();
+            navigatePDF('next');
+        }
+        
+        // Volume Down (Previous page)
+        if (event.key === 'ArrowDown' || event.key === 'VolumeDown' || event.key === 'PageUp') {
+            event.preventDefault();
+            navigatePDF('prev');
+        }
+        
+        // Alternative: Arrow keys for navigation
+        if (event.key === 'ArrowRight') {
+            event.preventDefault();
+            navigatePDF('next');
+        }
+        if (event.key === 'ArrowLeft') {
+            event.preventDefault();
+            navigatePDF('prev');
+        }
+    });
+
+    // Navigate PDF pages
+    function navigatePDF(direction) {
+        const iframe = document.getElementById('pdf-viewer');
+        try {
+            // Send navigation command to iframe
+            iframe.contentWindow.postMessage({
+                type: 'navigate',
+                direction: direction
+            }, '*');
+        } catch (error) {
+            console.log('PDF navigation:', direction);
         }
     }
 
