@@ -55,31 +55,42 @@
             const canvas = document.getElementById('pdf-canvas');
             const errorElement = document.getElementById('error');
 
-            // Load PDF document
-            const loadingTask = pdfjsLib.getDocument(pdfFile);
-            pdfDoc = await loadingTask.promise;
+            // Configure PDF.js for better text rendering
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
             
-            totalPages = pdfDoc.numPages;
-            document.getElementById('total-pages').textContent = totalPages;
-            
-            // Hide loading, show canvas
-            loadingElement.style.display = 'none';
-            canvas.style.display = 'block';
-            
-            // Render first page
-            await renderPage(currentPage);
-            updateButtons();
+            // Set better rendering preferences
+            pdfjsLib.getDocument({
+                url: pdfFile,
+                cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/',
+                cMapPacked: true,
+                standardFontDataUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/standard_fonts/'
+            }).promise.then(loadingTask => {
+                pdfDoc = loadingTask;
+                totalPages = pdfDoc.numPages;
+                document.getElementById('total-pages').textContent = totalPages;
+                
+                // Hide loading, show canvas
+                loadingElement.style.display = 'none';
+                canvas.style.display = 'block';
+                
+                // Render first page
+                renderPage(currentPage).then(() => {
+                    updateButtons();
+                });
+            }).catch(error => {
+                console.error('Error loading PDF:', error);
+                document.getElementById('loading').style.display = 'none';
+                const errorElement = document.getElementById('error');
+                errorElement.style.display = 'block';
+                errorElement.innerHTML = `
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <p>حدث خطأ أثناء تحميل الكتاب</p>
+                    <p>الرجاء التأكد من وجود ملف PDF: ${pdfFile}</p>
+                `;
+            });
             
         } catch (error) {
-            console.error('Error loading PDF:', error);
-            document.getElementById('loading').style.display = 'none';
-            const errorElement = document.getElementById('error');
-            errorElement.style.display = 'block';
-            errorElement.innerHTML = `
-                <i class="fas fa-exclamation-triangle"></i>
-                <p>حدث خطأ أثناء تحميل الكتاب</p>
-                <p>الرجاء التأكد من وجود ملف PDF: ${pdfFile}</p>
-            `;
+            console.error('Error initializing PDF viewer:', error);
         }
     }
 
@@ -92,33 +103,30 @@
             const canvas = document.getElementById('pdf-canvas');
             const context = canvas.getContext('2d');
 
-            // Calculate viewport with current zoom and better rendering settings
+            // Calculate viewport with current zoom - simplified for better text
             const viewport = page.getViewport({ 
-                scale: currentZoom * 2, // Higher scale for better quality
+                scale: currentZoom,
                 dontFlip: false
             });
             
-            // Set canvas dimensions with device pixel ratio for sharpness
-            const devicePixelRatio = window.devicePixelRatio || 1;
-            canvas.height = viewport.height * devicePixelRatio;
-            canvas.width = viewport.width * devicePixelRatio;
-            canvas.style.height = viewport.height + 'px';
-            canvas.style.width = viewport.width + 'px';
+            // Set canvas dimensions
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
             
-            // Scale context for high DPI displays
-            context.scale(devicePixelRatio, devicePixelRatio);
+            // Set rendering context for better text
+            context.fillStyle = '#ffffff';
+            context.fillRect(0, 0, canvas.width, canvas.height);
             
-            // Set rendering preferences for better text quality
+            // Enhanced rendering context for Arabic text
             const renderContext = {
                 canvasContext: context,
                 viewport: viewport,
-                intent: 'print', // Better quality rendering
+                intent: 'display',
                 enableWebGL: false,
-                renderInteractiveForms: false
+                renderInteractiveForms: false,
+                annotationMode: pdfjsLib.AnnotationMode.ENABLE,
+                transform: [1, 0, 0, 1, 0, 0]
             };
-
-            // Clear canvas before rendering
-            context.clearRect(0, 0, canvas.width, canvas.height);
             
             await page.render(renderContext).promise;
             
