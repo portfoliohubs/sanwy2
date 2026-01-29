@@ -1,70 +1,92 @@
 {{ define "main" }}
 
-<!-- Full screen PDF viewer - no other elements -->
-<iframe id="pdf-viewer" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; border: none; margin: 0; padding: 0;" 
-        src="{{ .Site.Params.pdf_file }}#view=FitH&toolbar=0&navpanes=0&scrollbar=0"></iframe>
+<!-- Full screen PDF viewer - loads immediately -->
+<iframe id="pdf-viewer" 
+        style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; border: none; margin: 0; padding: 0; z-index: 9999;" 
+        src="{{ .Site.Params.pdf_file }}#view=FitH&toolbar=0&navpanes=0&scrollbar=0"
+        onload="this.style.display='block'">
+</iframe>
+
+<!-- Fallback for devices that don't support iframe PDF -->
+<div id="fallback-link" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 10000;">
+    <h2 style="color: #333; margin-bottom: 20px;">فتح الكتاب</h2>
+    <a href="{{ .Site.Params.pdf_file }}" 
+       target="_blank" 
+       style="display: inline-block; padding: 15px 30px; background: #007bff; color: white; text-decoration: none; border-radius: 8px; font-size: 18px;">
+        فتح PDF
+    </a>
+</div>
 
 <script>
-    // Full screen PDF viewer with Smart TV remote support
-    const pdfFile = '{{ .Site.Params.pdf_file }}';
-
-    // Initialize PDF viewer
-    function initPDFViewer() {
-        try {
-            const pdfViewer = document.getElementById('pdf-viewer');
-            pdfViewer.style.display = 'block';
-            
-            // Remove body margin/padding for full screen
-            document.body.style.margin = '0';
-            document.body.style.padding = '0';
-            document.body.style.overflow = 'hidden';
-            
-        } catch (error) {
-            console.error('Error loading PDF:', error);
-        }
-    }
-
-    // Smart TV remote control support
-    document.addEventListener('keydown', function(event) {
-        // Volume Up (Next page)
-        if (event.key === 'ArrowUp' || event.key === 'VolumeUp' || event.key === 'PageDown') {
+    // Force immediate PDF display on all devices
+    (function() {
+        const pdfViewer = document.getElementById('pdf-viewer');
+        const fallbackLink = document.getElementById('fallback-link');
+        
+        // Show PDF immediately
+        pdfViewer.style.display = 'block';
+        
+        // Remove body margins for full screen
+        document.body.style.margin = '0';
+        document.body.style.padding = '0';
+        document.body.style.overflow = 'hidden';
+        document.body.style.backgroundColor = '#000';
+        
+        // Fallback for mobile/TV if iframe doesn't work
+        setTimeout(function() {
+            try {
+                // Check if PDF loaded
+                if (pdfViewer.contentDocument && pdfViewer.contentDocument.body.innerHTML === '') {
+                    // Show fallback link
+                    pdfViewer.style.display = 'none';
+                    fallbackLink.style.display = 'block';
+                }
+            } catch (e) {
+                // Some browsers block cross-origin iframe access, show fallback
+                console.log('PDF iframe access blocked, using fallback');
+            }
+        }, 3000);
+        
+        // Smart TV remote control support
+        document.addEventListener('keydown', function(event) {
+            // Prevent default behavior for volume keys
             event.preventDefault();
-            navigatePDF('next');
+            
+            // Volume Up / Arrow Up / PageDown = Next page
+            if (event.key === 'ArrowUp' || event.key === 'VolumeUp' || event.key === 'PageDown' || event.key === 'ArrowRight') {
+                navigatePDF('next');
+            }
+            
+            // Volume Down / Arrow Down / PageUp = Previous page  
+            if (event.key === 'ArrowDown' || event.key === 'VolumeDown' || event.key === 'PageUp' || event.key === 'ArrowLeft') {
+                navigatePDF('prev');
+            }
+        });
+        
+        // PDF navigation function
+        function navigatePDF(direction) {
+            try {
+                // Try to navigate within iframe
+                pdfViewer.contentWindow.focus();
+                
+                // Send keyboard events to iframe for navigation
+                const keyEvent = direction === 'next' ? 
+                    new KeyboardEvent('keydown', { key: 'ArrowRight' }) : 
+                    new KeyboardEvent('keydown', { key: 'ArrowLeft' });
+                    
+                pdfViewer.contentWindow.dispatchEvent(keyEvent);
+                
+                console.log('PDF navigation:', direction);
+            } catch (error) {
+                console.log('Navigation attempted:', direction);
+            }
         }
         
-        // Volume Down (Previous page)
-        if (event.key === 'ArrowDown' || event.key === 'VolumeDown' || event.key === 'PageUp') {
-            event.preventDefault();
-            navigatePDF('prev');
-        }
-        
-        // Alternative: Arrow keys for navigation
-        if (event.key === 'ArrowRight') {
-            event.preventDefault();
-            navigatePDF('next');
-        }
-        if (event.key === 'ArrowLeft') {
-            event.preventDefault();
-            navigatePDF('prev');
-        }
-    });
-
-    // Navigate PDF pages
-    function navigatePDF(direction) {
-        const iframe = document.getElementById('pdf-viewer');
-        try {
-            // Send navigation command to iframe
-            iframe.contentWindow.postMessage({
-                type: 'navigate',
-                direction: direction
-            }, '*');
-        } catch (error) {
-            console.log('PDF navigation:', direction);
-        }
-    }
-
-    // Initialize when page loads
-    document.addEventListener('DOMContentLoaded', initPDFViewer);
+        // Auto-focus on PDF viewer for keyboard control
+        pdfViewer.addEventListener('load', function() {
+            pdfViewer.contentWindow.focus();
+        });
+    })();
 </script>
 
 {{ end }}
