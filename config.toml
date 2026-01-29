@@ -1,7 +1,6 @@
 baseURL = "https://portfoliohubs.github.io/sanwy2/"
 languageCode = "ar"
 title = "ازاى افرح"
-theme = "default"
 
 [params]
   # PDF Configuration
