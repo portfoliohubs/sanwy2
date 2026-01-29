@@ -1,0 +1,21 @@
+baseURL = "https://portfoliohubs.github.io/sanwy2/"
+languageCode = "ar"
+title = "ازاى افرح"
+theme = "default"
+
+[params]
+  # PDF Configuration
+  pdf_file = "ازاى افرح+.pdf"
+  site_title = "ازاى افرح"
+  description = "عرض كتاب ازاى افرح صفحة بصفحة"
+  
+  # Styling
+  background_color = "#f5f5f5"
+  text_color = "#333333"
+  accent_color = "#007bff"
+  
+  # PDF Viewer Settings
+  viewer_width = "100%"
+  viewer_height = "800px"
+  show_page_controls = true
+  show_zoom_controls = true
